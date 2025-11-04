@@ -1,47 +1,40 @@
-local lspconfig = vim.lsp.config('basedpyright', {
-  settings = {
-    basedpyright = {
-      analysis = {
-        typeCheckingMode = "basic",
-      },
-    },
+return {
+  { "neovim/nvim-lspconfig" },
+
+  -- Mason core
+  { "williamboman/mason.nvim", config = true },
+
+  -- Mason ↔ lspconfig bridge (this is where setup_handlers lives)
+  {
+    "williamboman/mason-lspconfig.nvim",
+    dependencies = { "williamboman/mason.nvim", "neovim/nvim-lspconfig" },
+    config = function()
+      local lspconfig = require("lspconfig")
+      local mason_lspconfig = require("mason-lspconfig")
+
+      mason_lspconfig.setup({
+        ensure_installed = { "basedpyright" },
+      })
+
+      -- Use handlers to set up all servers
+      mason_lspconfig.setup_handlers({
+        -- default handler for every server
+        function(server)
+          lspconfig[server].setup({
+            capabilities = require("cmp_nvim_lsp").default_capabilities(),
+          })
+        end,
+
+        -- optional: override a specific server
+        ["basedpyright"] = function()
+          lspconfig.basedpyright.setup({
+            capabilities = require("cmp_nvim_lsp").default_capabilities(),
+            settings = {
+              python = { analysis = { typeCheckingMode = "standard" } },
+            },
+          })
+        end,
+      })
+    end,
   },
-  on_attach = function(client, bufnr)
-    -- your keymaps, etc
-  end,
 }
-)
-
-vim.lsp.enable('basedpyright')
-
-
-
-
-local mason = require("mason")
-local mason_lspconfig = require("mason-lspconfig")
-
-mason.setup()
-mason_lspconfig.setup({
-  ensure_installed = { "basedpyright" }, -- auto-install
-})
-
--- Advertise cmp capabilities to LSP so it supplies completion items
-local capabilities = require("cmp_nvim_lsp").default_capabilities()
-
-local on_attach = function(_, bufnr)
-  local map = function(mode, lhs, rhs) vim.keymap.set(mode, lhs, rhs, { buffer = bufnr }) end
-  map("n", "gd", vim.lsp.buf.definition)
-  map("n", "K",  vim.lsp.buf.hover)
-  map("n", "<leader>rn", vim.lsp.buf.rename)
-  map("n", "<leader>ca", vim.lsp.buf.code_action)
-end
-
-mason_lspconfig.setup_handlers({
-  function(server)
-    lspconfig[server].setup({
-      on_attach = on_attach,
-      capabilities = capabilities,
-    })
-  end,
-})
-
